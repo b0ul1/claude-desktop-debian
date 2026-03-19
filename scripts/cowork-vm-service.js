@@ -1013,9 +1013,16 @@ class KvmBackend extends BackendBase {
         }
 
         // Build QEMU arguments
+        // When virtiofs is used, QEMU requires shared memory backend for
+        // vhost-user-fs-pci. Use memory-backend-memfd with share=on.
+        const useSharedMem = !!this.virtiofsdProcess;
         const qemuArgs = [
             '-enable-kvm',
-            '-m', `${memoryGB}G`,
+            ...(useSharedMem
+                ? ['-object', `memory-backend-memfd,id=mem,size=${memoryGB}G,share=on`,
+                   '-numa', 'node,memdev=mem',
+                   '-m', `${memoryGB}G`]
+                : ['-m', `${memoryGB}G`]),
             '-cpu', 'host',
             '-smp', String(cpuCount),
             '-nographic',
