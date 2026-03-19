@@ -9,7 +9,6 @@
   nodejs,
   nodePackages,
   makeDesktopItem,
-  makeWrapper,
   python3,
   bash,
   getent,
@@ -65,7 +64,6 @@ stdenvNoCC.mkDerivation {
     nodePackages.asar
     icoutils
     imagemagick
-    makeWrapper
     bash
     python3
     getent
@@ -125,6 +123,15 @@ stdenvNoCC.mkDerivation {
       cp -r build/electron-app/nix-resources/claude-ssh $out/lib/claude-desktop/resources/
     fi
 
+    # Install cowork resources (smol-bin, plugin shim)
+    for cowork_res in build/electron-app/nix-resources/smol-bin.*.vhdx \
+                      build/electron-app/nix-resources/cowork-plugin-shim.sh; do
+      if [ -f "$cowork_res" ]; then
+        cp "$cowork_res" $out/lib/claude-desktop/resources/
+        echo "Installed cowork resource: $(basename "$cowork_res")"
+      fi
+    done
+
     # Install locale JSON files into resources (belt-and-suspenders;
     # they're also packed inside app.asar at resources/i18n/)
     for locale_json in build/claude-extract/lib/net45/resources/*-*.json; do
@@ -133,16 +140,74 @@ stdenvNoCC.mkDerivation {
       fi
     done
 
+    # Install shared launcher library
+    install -Dm755 ${sourceRoot}/scripts/launcher-common.sh \
+      $out/lib/claude-desktop/launcher-common.sh
+
     # Install .desktop file
     mkdir -p $out/share/applications
     install -Dm644 ${desktopItem}/share/applications/* $out/share/applications/
 
-    # Create wrapper script
+    # Create launcher script (sources launcher-common.sh for --doctor,
+    # CLAUDE_USE_WAYLAND, display detection, and other shared features
+    # — matching the deb/RPM/AppImage launchers)
     mkdir -p $out/bin
-    makeWrapper ${electron}/bin/electron $out/bin/claude-desktop \
-      --add-flags "$out/lib/claude-desktop/resources/app.asar" \
-      --add-flags "--disable-features=CustomTitlebar" \
-      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations}}"
+    cat > $out/bin/claude-desktop <<'LAUNCHER'
+#!/usr/bin/env bash
+# Claude Desktop launcher for NixOS
+
+electron_exec="ELECTRON_PLACEHOLDER"
+app_path="RESOURCES_PLACEHOLDER/app.asar"
+
+source "LAUNCHER_LIB_PLACEHOLDER"
+
+# Handle --doctor flag before anything else
+if [[ "''${1:-}" == '--doctor' ]]; then
+	run_doctor "$electron_exec"
+	exit $?
+fi
+
+# Setup logging and environment
+setup_logging || exit 1
+setup_electron_env
+cleanup_stale_lock
+cleanup_stale_cowork_socket
+
+# Log startup info
+log_message '--- Claude Desktop Launcher Start (NixOS) ---'
+log_message "Timestamp: $(date)"
+log_message "Arguments: $@"
+
+# Check for display
+if ! check_display; then
+	log_message 'No display detected (TTY session)'
+	echo 'Error: Claude Desktop requires a graphical desktop environment.' >&2
+	echo 'Please run from within an X11 or Wayland session, not from a TTY.' >&2
+	exit 1
+fi
+
+# Detect display backend (handles CLAUDE_USE_WAYLAND)
+detect_display_backend
+
+# Build Electron arguments
+build_electron_args 'nix'
+
+# Add app path
+electron_args+=("$app_path")
+
+# Execute Electron
+log_message "Executing: $electron_exec ''${electron_args[*]} $*"
+"$electron_exec" "''${electron_args[@]}" "$@" >> "$log_file" 2>&1
+exit_code=$?
+log_message "Electron exited with code: $exit_code"
+exit $exit_code
+LAUNCHER
+    # Substitute placeholders with Nix store paths
+    substituteInPlace $out/bin/claude-desktop \
+      --replace-fail "ELECTRON_PLACEHOLDER" "${electron}/bin/electron" \
+      --replace-fail "RESOURCES_PLACEHOLDER" "$out/lib/claude-desktop/resources" \
+      --replace-fail "LAUNCHER_LIB_PLACEHOLDER" "$out/lib/claude-desktop/launcher-common.sh"
+    chmod +x $out/bin/claude-desktop
 
     runHook postInstall
   '';

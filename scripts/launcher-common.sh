@@ -73,8 +73,9 @@ build_electron_args() {
 		return
 	fi
 
-	# Wayland: deb package needs --no-sandbox in both modes
-	[[ $package_type == 'deb' ]] && electron_args+=('--no-sandbox')
+	# Wayland: deb/nix packages need --no-sandbox in both modes
+	[[ $package_type == 'deb' || $package_type == 'nix' ]] \
+		&& electron_args+=('--no-sandbox')
 
 	if [[ $use_x11_on_wayland == true ]]; then
 		# Default: Use X11 via XWayland for global hotkey support
