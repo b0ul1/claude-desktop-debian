@@ -1323,30 +1323,20 @@ if (serviceErrorIdx !== -1) {
 
 // ============================================================
 // Patch 9: Copy smol-bin VHDX on Linux
-// The app copies smol-bin from resources to the bundle dir at
-// startup, but only on win32. That win32 block also calls
-// _.configure() which is Windows-specific (HCS setup) and
-// causes "Request timed out: configure" on Linux (#315).
-// Instead of widening the win32 gate, inject a separate Linux
-// block after it that only does the smol-bin copy.
-// Anchor: unique string "Windows VM service configured"
+// The win32 block copies smol-bin then calls _.configure()
+// (Windows HCS setup) which causes "Request timed out" on
+// Linux (#315). Inject a separate Linux block after the win32
+// block that only does the smol-bin copy.
 // ============================================================
 {
     const anchor = '"[VM:start] Windows VM service configured"';
     const anchorIdx = code.indexOf(anchor);
     if (anchorIdx !== -1) {
-        // Find the closing of the win32 if-block: "})" or just "}"
-        // after the anchor string. The structure is:
-        //   ...tt.info("[VM:start] Windows VM service configured")));}
-        // We need to insert after that closing "}"
-        const afterAnchor = anchorIdx + anchor.length;
-        // Skip past )); and any whitespace to find the closing }
-        const closingBrace = code.indexOf('}', afterAnchor);
+        // Find the "}" closing the win32 if-block after the anchor
+        const closingBrace = code.indexOf('}', anchorIdx + anchor.length);
         if (closingBrace !== -1) {
-            // Insert a Linux-only smol-bin copy block after the }
-            // Uses the same variables available in scope:
-            //   uX() = arch, Qe = path, i = bundlePath,
-            //   ft = fs, vg = stream/pipeline, tt = logger
+            // Scope variables: uX()=arch, Qe=path, i=bundlePath,
+            //   ft=fs, vg=stream/pipeline, tt=logger
             const linuxBlock =
                 'if(process.platform==="linux"){' +
                 'const _la=uX(),' +
