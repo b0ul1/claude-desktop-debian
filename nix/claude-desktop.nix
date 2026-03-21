@@ -170,6 +170,7 @@ fi
 # Setup logging and environment
 setup_logging || exit 1
 setup_electron_env 'nix'
+cleanup_orphaned_cowork_daemon
 cleanup_stale_lock
 cleanup_stale_cowork_socket
 
