@@ -12,9 +12,9 @@
  *   - KvmBackend:   QEMU/KVM virtual machine with vsock communication
  *
  * Backend selection (auto-detected or overridden via COWORK_VM_BACKEND env):
- *   1. kvm   — if /dev/kvm, qemu-system-x86_64, /dev/vhost-vsock, and
- *              rootfs.qcow2 are all available
- *   2. bwrap — if bwrap is installed and functional
+ *   1. bwrap — if bwrap is installed and functional (default)
+ *   2. kvm   — if /dev/kvm, qemu-system-x86_64, and /dev/vhost-vsock
+ *              are available (rootfs checked at startVM time)
  *   3. host  — fallback, no isolation
  *
  * Protocol:
@@ -1806,7 +1806,24 @@ function detectBackend(emitEvent) {
         }
     }
 
-    // Auto-detect: try KVM first, then bwrap, then host.
+    // Auto-detect: try bwrap first, then KVM, then host.
+    try {
+        execFileSync('which', ['bwrap'], { stdio: 'pipe' });
+        execFileSync('bwrap', ['--ro-bind', '/', '/', 'true'], {
+            stdio: 'pipe', timeout: 5000
+        });
+        log('Backend: bwrap');
+        // Hint for users upgrading from KVM-first auto-detection
+        try {
+            fs.accessSync('/dev/kvm', fs.constants.R_OK | fs.constants.W_OK);
+            log('Note: KVM is available but bwrap is now the default. '
+                + 'Set COWORK_VM_BACKEND=kvm for full VM isolation.');
+        } catch (_) { /* KVM not available, no hint needed */ }
+        return new BwrapBackend(emitEvent);
+    } catch (e) {
+        log(`bwrap not available: ${e.message}`);
+    }
+
     // Note: rootfs is NOT checked here — the app downloads it to
     // bundlePath which isn't known until startVM(). The rootfs
     // check happens at startVM time instead.
@@ -1818,17 +1835,6 @@ function detectBackend(emitEvent) {
         return new KvmBackend(emitEvent);
     } catch (e) {
         log(`KVM not available: ${e.message}`);
-    }
-
-    try {
-        execFileSync('which', ['bwrap'], { stdio: 'pipe' });
-        execFileSync('bwrap', ['--ro-bind', '/', '/', 'true'], {
-            stdio: 'pipe', timeout: 5000
-        });
-        log('Backend: bwrap');
-        return new BwrapBackend(emitEvent);
-    } catch (e) {
-        log(`bwrap not available: ${e.message}`);
     }
 
     log('Backend: host (no isolation)');

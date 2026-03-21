@@ -11,11 +11,11 @@ This project provides build scripts to run Claude Desktop natively on Linux syst
 >
 > | Backend | Isolation | Requirements |
 > |---------|-----------|-------------|
-> | **KVM** (preferred) | Full VM via QEMU/KVM | `/dev/kvm`, `qemu-system-x86_64`, `/dev/vhost-vsock`, `socat`, `virtiofsd` |
-> | **bubblewrap** (fallback) | Namespace sandbox | `bwrap` installed and functional |
+> | **bubblewrap** (default) | Namespace sandbox | `bwrap` installed and functional |
+> | **KVM** (opt-in) | Full VM via QEMU/KVM | `/dev/kvm`, `qemu-system-x86_64`, `/dev/vhost-vsock`, `socat`, `virtiofsd` |
 > | **host** (last resort) | None — runs directly on host | No additional requirements |
 >
-> The best available backend is auto-detected at startup. Run `claude-desktop --doctor` to check which backend will be used and which dependencies are missing.
+> The best available backend is auto-detected at startup. Run `claude-desktop --doctor` to check which backend will be used and which dependencies are missing. For full VM-level isolation matching the upstream Windows (Hyper-V) behavior, set `COWORK_VM_BACKEND=kvm`.
 >
 > **Note:** The bubblewrap backend mounts your home directory as read-only (only the project working directory is writable). The host backend provides no isolation — use it only if you understand the security implications.
 

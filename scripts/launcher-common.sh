@@ -468,35 +468,57 @@ print(len(servers))
 	local _distro_id
 	_distro_id=$(_cowork_distro_id)
 
-	# KVM access
+	# Bubblewrap (default backend)
+	if command -v bwrap &>/dev/null; then
+		_pass 'bubblewrap: found'
+	else
+		_warn 'bubblewrap: not found'
+		_info \
+			"Fix: $(_cowork_pkg_hint "$_distro_id" bubblewrap)"
+	fi
+
+	# Warn on missing KVM deps only when explicitly requested;
+	# otherwise just inform since bwrap is the default.
+	local _kvm_active=false
+	[[ ${COWORK_VM_BACKEND-} == [Kk][Vv][Mm] ]] && _kvm_active=true
+	local _kvm_issue=_info
+	$_kvm_active && _kvm_issue=_warn
+
+	# KVM backend (opt-in via COWORK_VM_BACKEND=kvm)
 	if [[ -e /dev/kvm ]]; then
 		if [[ -r /dev/kvm && -w /dev/kvm ]]; then
 			_pass 'KVM: accessible'
 		else
-			_warn 'KVM: /dev/kvm exists but not accessible'
-			_info "Fix: sudo usermod -aG kvm $USER"
-			_info '(Log out and back in after running this)'
+			"$_kvm_issue" 'KVM: /dev/kvm exists but not accessible'
+			if $_kvm_active; then
+				_info "Fix: sudo usermod -aG kvm $USER"
+				_info '(Log out and back in after running this)'
+			fi
 		fi
 	else
-		_warn 'KVM: not available'
-		_info 'Fix: Install qemu-kvm and ensure KVM is enabled in BIOS'
+		"$_kvm_issue" 'KVM: not available'
+		if $_kvm_active; then
+			_info \
+				'Fix: Install qemu-kvm and ensure KVM is enabled in BIOS'
+		fi
 	fi
 
 	# vsock module
 	if [[ -e /dev/vhost-vsock ]]; then
 		_pass 'vsock: module loaded'
 	else
-		_warn 'vsock: /dev/vhost-vsock not found'
-		_info 'Fix: sudo modprobe vhost_vsock'
+		"$_kvm_issue" 'vsock: /dev/vhost-vsock not found'
+		if $_kvm_active; then
+			_info 'Fix: sudo modprobe vhost_vsock'
+		fi
 	fi
 
-	# Check required tools: label, binary, pkg-hint name
+	# KVM tools: QEMU, socat, virtiofsd
 	local _tool_label _tool_bin _tool_pkg
 	for _tool_label in \
 		'QEMU:qemu-system-x86_64:qemu' \
 		'socat:socat:socat' \
-		'virtiofsd:virtiofsd:virtiofsd' \
-		'bubblewrap:bwrap:bubblewrap'
+		'virtiofsd:virtiofsd:virtiofsd'
 	do
 		_tool_bin="${_tool_label#*:}"
 		_tool_pkg="${_tool_bin#*:}"
@@ -506,9 +528,11 @@ print(len(servers))
 		if command -v "$_tool_bin" &>/dev/null; then
 			_pass "$_tool_label: found"
 		else
-			_warn "$_tool_label: not found"
-			_info \
-				"Fix: $(_cowork_pkg_hint "$_distro_id" "$_tool_pkg")"
+			"$_kvm_issue" "$_tool_label: not found"
+			if $_kvm_active; then
+				_info \
+					"Fix: $(_cowork_pkg_hint "$_distro_id" "$_tool_pkg")"
+			fi
 		fi
 	done
 
@@ -526,15 +550,20 @@ print(len(servers))
 
 	# Determine active backend (matches daemon's detectBackend())
 	local cowork_backend='none (host-direct, no isolation)'
-	if [[ -e /dev/kvm ]] \
-		&& [[ -r /dev/kvm && -w /dev/kvm ]] \
-		&& command -v qemu-system-x86_64 &>/dev/null \
-		&& [[ -e /dev/vhost-vsock ]] \
-		&& [[ -f $vm_image ]]; then
-		cowork_backend='KVM (full VM isolation)'
+	if [[ -n ${COWORK_VM_BACKEND-} ]]; then
+		case ${COWORK_VM_BACKEND,,} in
+			kvm)  cowork_backend='KVM (full VM isolation, via override)' ;;
+			bwrap) cowork_backend='bubblewrap (namespace sandbox, via override)' ;;
+			host) cowork_backend='host-direct (no isolation, via override)' ;;
+		esac
 	elif command -v bwrap &>/dev/null \
 		&& bwrap --ro-bind / / true &>/dev/null; then
 		cowork_backend='bubblewrap (namespace sandbox)'
+	elif [[ -e /dev/kvm ]] \
+		&& [[ -r /dev/kvm && -w /dev/kvm ]] \
+		&& command -v qemu-system-x86_64 &>/dev/null \
+		&& [[ -e /dev/vhost-vsock ]]; then
+		cowork_backend='KVM (full VM isolation)'
 	fi
 	_info "Cowork isolation: $cowork_backend"
 

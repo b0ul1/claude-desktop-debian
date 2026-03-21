@@ -16,8 +16,8 @@ cowork-vm-service (Node.js daemon)
             → delegates to this.backend (auto-detected or COWORK_VM_BACKEND override)
 
 Backend selection (priority order):
-  1. KvmBackend   — QEMU/KVM + vsock + virtiofs (full VM isolation)
-  2. BwrapBackend — bubblewrap namespace sandbox (lightweight isolation)
+  1. BwrapBackend — bubblewrap namespace sandbox (default)
+  2. KvmBackend   — QEMU/KVM + vsock + virtiofs (opt-in, full VM isolation)
   3. HostBackend  — direct on host, no isolation (fallback)
 
 KvmBackend path:
@@ -173,15 +173,15 @@ The `detectBackend()` function selects the active backend at daemon startup. The
 
 ### Auto-detection order:
 
-1. **KVM** — Requires ALL of:
+1. **Bwrap** (default) — Requires:
+   - `bwrap` in PATH
+   - `bwrap --ro-bind / / true` succeeds (functional test)
+
+2. **KVM** (opt-in via `COWORK_VM_BACKEND=kvm`) — Requires ALL of:
    - `/dev/kvm` readable and writable
    - `qemu-system-x86_64` in PATH
    - `/dev/vhost-vsock` readable
-   - `~/.local/share/claude-desktop/vm/rootfs.qcow2` exists
-
-2. **Bwrap** — Requires:
-   - `bwrap` in PATH
-   - `bwrap --ro-bind / / true` succeeds (functional test)
+   - Rootfs image checked at `startVM()` time, not during detection
 
 3. **Host** — Always available (fallback)
 
