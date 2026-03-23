@@ -119,9 +119,7 @@ cleanup_orphaned_cowork_daemon() {
 	for pid in $cowork_pids; do
 		kill "$pid" 2>/dev/null || true
 	done
-	log_message \
-		"Killed orphaned cowork-vm-service daemon" \
-		"(PIDs: $cowork_pids)"
+	log_message "Killed orphaned cowork-vm-service daemon (PIDs: $cowork_pids)"
 }
 
 # Clean up stale SingletonLock if the owning process is no longer running.
@@ -615,8 +613,7 @@ print(len(servers))
 		done
 		if [[ $_daemon_orphaned == true ]]; then
 			_warn "Cowork daemon: orphaned (PIDs: $_cowork_pids)"
-			_info 'Fix: Restart Claude Desktop (daemon will be' \
-				'cleaned up automatically)'
+			_info 'Fix: Restart Claude Desktop (daemon will be cleaned up automatically)'
 		else
 			_pass 'Cowork daemon: running (parent alive)'
 		fi
