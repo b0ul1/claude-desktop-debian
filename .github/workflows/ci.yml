@@ -212,7 +212,7 @@ jobs:
 
       - name: Run compare-releases (upstream change)
         if: steps.prev.outcome == 'success' && steps.prev.outputs.type == 'upstream'
-        timeout-minutes: 5
+        timeout-minutes: 180
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
