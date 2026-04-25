@@ -5,15 +5,6 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Before you file:** This repository uses an automated triage bot that
-        sends issue contents to Anthropic's API for classification and
-        investigation. Do not include credentials, tokens, personal data, or
-        anything you wouldn't put on a public issue tracker. See the
-        [Privacy section in the README](https://github.com/aaddrick/claude-desktop-debian/blob/main/README.md#privacy)
-        for what the bot does with your issue.
-  - type: markdown
-    attributes:
-      value: |
         **Is `apt update` failing?** If you're seeing
         `Redirection from https to 'http://pkg.claude-desktop-debian.dev/...' is forbidden`,
         your sources.list still points at the legacy `aaddrick.github.io` URL —
@@ -26,6 +17,15 @@ body:
         ```
 
         Background: [README — Migrating from the old `aaddrick.github.io` URL](https://github.com/aaddrick/claude-desktop-debian/blob/main/README.md#migrating-from-the-old-aaddrickgithubio-url).
+  - type: markdown
+    attributes:
+      value: |
+        **Before you file:** This repository uses an automated triage bot that
+        sends issue contents to Anthropic's API for classification and
+        investigation. Do not include credentials, tokens, personal data, or
+        anything you wouldn't put on a public issue tracker. See the
+        [Privacy section in the README](https://github.com/aaddrick/claude-desktop-debian/blob/main/README.md#privacy)
+        for what the bot does with your issue.
   - type: textarea
     id: doctor
     attributes:
