@@ -1,0 +1,9 @@
+.git
+build
+*.AppImage
+*.zsync
+*.deb
+*.rpm
+node_modules
+tools/test-harness/node_modules
+.omx
