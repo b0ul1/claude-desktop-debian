@@ -26,6 +26,7 @@ RUN pacman -Syu --noconfirm \
 	mesa \
 	nss \
 	xdg-utils \
+	xorg-xprop \
 	&& pacman -Scc --noconfirm
 
 ENV ELECTRON_DISABLE_SECURITY_WARNINGS=1

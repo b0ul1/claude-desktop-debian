@@ -106,5 +106,4 @@ if [[ -e /dev/dri ]]; then
 fi
 
 exec docker "${docker_args[@]}" "$image_name" \
-	bash -lc 'mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR" && exec /opt/claude-desktop.AppImage "$@"' \
-	claude-desktop "$@"
+	/work/docker/container-entrypoint.sh "$@"

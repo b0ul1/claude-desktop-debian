@@ -25,7 +25,9 @@ claude-desktop --doctor
 
 The wrapper uses X11 (`DISPLAY` + `/tmp/.X11-unix`) and
 `APPIMAGE_EXTRACT_AND_RUN=1`, so the AppImage does not require FUSE inside
-the container. Runtime state is stored under:
+the container. It also watches the X11 window list and stops the AppImage
+process after the Claude window is closed, allowing Docker to remove the
+container. Runtime state is stored under:
 
 - `~/.local/share/claude-desktop-docker/home`
 - `~/.cache/claude-desktop-docker`
