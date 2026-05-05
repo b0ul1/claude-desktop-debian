@@ -56,7 +56,7 @@ Status legend: `✓` pass · `✗` fail · `🔧` mitigated · `?` untested · `
 
 | ID | Test | Status | Notes |
 |----|------|--------|-------|
-| [S01](./cases/distribution.md#s01--appimage-launches-without-manual-libfuse2t64-install) | AppImage launches without manual `libfuse2t64` install | ✗ | Workaround documented; not yet filed |
+| [S01](./cases/distribution.md#s01--appimage-launches-without-manual-libfuse2t64-install) | AppImage launches without manual `libfuse2t64` install | ? | Packaging switched to current appimagetool; needs fresh Ubuntu 24.04+ VM re-test |
 | [S02](./cases/distribution.md#s02--xdg_current_desktopubuntu-gnome-doesnt-break-de-detection) | `XDG_CURRENT_DESKTOP=ubuntu:GNOME` doesn't break DE detection | ? | — |
 | [S03](./cases/distribution.md#s03--deb-install-via-apt-pulls-all-required-runtime-deps) | DEB install via APT pulls all required runtime deps | ? | — |
 
