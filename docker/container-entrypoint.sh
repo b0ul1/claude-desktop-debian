@@ -8,6 +8,33 @@ app_root=''
 mkdir -p "$XDG_RUNTIME_DIR" || exit 1
 chmod 700 "$XDG_RUNTIME_DIR" || exit 1
 
+setup_passwd_entry() {
+	local uid gid nss_passwd nss_group nss_library
+
+	uid="$(id -u)"
+	gid="$(id -g)"
+
+	if getent passwd "$uid" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	nss_library='/usr/lib/libnss_wrapper.so'
+	[[ -r $nss_library ]] || return 0
+
+	nss_passwd="$XDG_RUNTIME_DIR/passwd"
+	nss_group="$XDG_RUNTIME_DIR/group"
+
+	printf 'claude:x:%s:%s:Claude Desktop:%s:/usr/bin/bash\n' \
+		"$uid" "$gid" "$HOME" > "$nss_passwd" || return 1
+	printf 'claude:x:%s:\n' "$gid" > "$nss_group" || return 1
+
+	export NSS_WRAPPER_PASSWD="$nss_passwd"
+	export NSS_WRAPPER_GROUP="$nss_group"
+	export LD_PRELOAD="$nss_library${LD_PRELOAD:+:$LD_PRELOAD}"
+}
+
+setup_passwd_entry || exit 1
+
 prepare_appimage_root() {
 	local extract_parent="$XDG_RUNTIME_DIR/appimage-extract"
 	local extracted_root="$extract_parent/squashfs-root"
