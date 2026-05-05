@@ -83,6 +83,7 @@ docker_args=(
 	-e "XDG_RUNTIME_DIR=/tmp/runtime-claude"
 	-e APPIMAGE_EXTRACT_AND_RUN=1
 	-e CLAUDE_USE_WAYLAND=0
+	-e CLAUDE_QUIT_ON_CLOSE=1
 	-e GDK_DISABLE_SHM=1
 	-e QT_X11_NO_MITSHM=1
 	-v /tmp/.X11-unix:/tmp/.X11-unix:rw
