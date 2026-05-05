@@ -5,6 +5,7 @@ set -u
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
 image_name="${CLAUDE_DESKTOP_DOCKER_IMAGE:-claude-desktop-appimage-runtime:local}"
+container_name="${CLAUDE_DESKTOP_DOCKER_CONTAINER:-claude-desktop}"
 container_home="${XDG_DATA_HOME:-$HOME/.local/share}/claude-desktop-docker/home"
 container_cache="${XDG_CACHE_HOME:-$HOME/.cache}/claude-desktop-docker"
 
@@ -28,6 +29,25 @@ ensure_image() {
 		"$repo_root"
 }
 
+cleanup_existing_containers() {
+	local ids
+
+	# Remove older unnamed containers from previous wrapper versions.
+	ids=$(docker ps -q \
+		--filter "ancestor=$image_name" \
+		--filter "name=^/(?!${container_name}$).*" 2>/dev/null || true)
+	if [[ -n $ids ]]; then
+		# shellcheck disable=SC2086
+		docker stop $ids >/dev/null 2>&1 || true
+	fi
+
+	if docker ps -a --format '{{.Names}}' \
+		| grep -Fxq "$container_name"; then
+		docker stop "$container_name" >/dev/null 2>&1 || true
+		docker rm "$container_name" >/dev/null 2>&1 || true
+	fi
+}
+
 appimage_path="$(find_appimage)"
 if [[ -z $appimage_path ]]; then
 	echo 'No claude-desktop AppImage found in the repository.' >&2
@@ -43,10 +63,12 @@ fi
 
 ensure_image || exit 1
 mkdir -p "$container_home" "$container_cache" || exit 1
+cleanup_existing_containers
 
 docker_args=(
 	run
 	--rm
+	--name "$container_name"
 	--hostname claude-desktop-docker
 	--ipc host
 	--user "$(id -u):$(id -g)"
