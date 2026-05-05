@@ -3,12 +3,48 @@
 set -u
 
 appimage_path='/opt/claude-desktop.AppImage'
+app_root=''
 
 mkdir -p "$XDG_RUNTIME_DIR" || exit 1
 chmod 700 "$XDG_RUNTIME_DIR" || exit 1
 
+prepare_appimage_root() {
+	local extract_parent="$XDG_RUNTIME_DIR/appimage-extract"
+	local extracted_root="$extract_parent/squashfs-root"
+	local lib_dir
+
+	rm -rf "$extract_parent" || return 1
+	mkdir -p "$extract_parent" || return 1
+	(
+		cd "$extract_parent" || exit 1
+		"$appimage_path" --appimage-extract >/dev/null
+	) || return 1
+
+	app_root="$extracted_root"
+	lib_dir="$app_root/usr/lib/claude-desktop"
+
+	# Use the repo launcher inside Docker so wrapper-only fixes, such as
+	# password-store selection, apply without rebuilding the AppImage.
+	if [[ -d $lib_dir ]]; then
+		[[ -f /work/scripts/launcher-common.sh ]] \
+			&& cp /work/scripts/launcher-common.sh "$lib_dir/launcher-common.sh"
+		[[ -f /work/scripts/doctor.sh ]] \
+			&& cp /work/scripts/doctor.sh "$lib_dir/doctor.sh"
+	fi
+}
+
+run_app() {
+	if command -v dbus-run-session >/dev/null 2>&1; then
+		exec dbus-run-session -- "$app_root/AppRun" "$@"
+	fi
+
+	exec "$app_root/AppRun" "$@"
+}
+
+prepare_appimage_root || exit 1
+
 if [[ ${1:-} == '--doctor' ]]; then
-	exec "$appimage_path" "$@"
+	run_app "$@"
 fi
 
 window_exists() {
@@ -54,7 +90,7 @@ watch_window_lifecycle() {
 	done
 }
 
-"$appimage_path" "$@" &
+run_app "$@" &
 app_pid=$!
 
 watch_window_lifecycle "$app_pid" &

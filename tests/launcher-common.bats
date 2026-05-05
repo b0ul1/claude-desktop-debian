@@ -33,6 +33,7 @@ setup() {
 	unset DISPLAY
 	unset WAYLAND_DISPLAY
 	unset CLAUDE_USE_WAYLAND
+	unset CLAUDE_PASSWORD_STORE
 	unset NIRI_SOCKET
 	unset XDG_CURRENT_DESKTOP
 	unset XDG_SESSION_TYPE
@@ -121,9 +122,10 @@ teardown() {
 	[[ "${lines[6]}"  == '  XMODIFIERS=@im=ibus' ]]
 	[[ "${lines[7]}"  == '  QT_IM_MODULE=ibus' ]]
 	[[ "${lines[8]}"  == '  CLAUDE_USE_WAYLAND=1' ]]
-	[[ "${lines[9]}"  == '  CLAUDE_TITLEBAR_STYLE=hybrid' ]]
-	[[ "${lines[10]}" == '  CLAUDE_GTK_IM_MODULE=xim' ]]
-	[[ "${lines[11]}" == '}' ]]
+	[[ "${lines[9]}"  == '  CLAUDE_PASSWORD_STORE=' ]]
+	[[ "${lines[10]}" == '  CLAUDE_TITLEBAR_STYLE=hybrid' ]]
+	[[ "${lines[11]}" == '  CLAUDE_GTK_IM_MODULE=xim' ]]
+	[[ "${lines[12]}" == '}' ]]
 }
 
 @test "log_session_env: unset/empty values render as 'KEY=' (no value)" {
@@ -144,8 +146,9 @@ teardown() {
 	[[ "${lines[6]}"  == '  XMODIFIERS=' ]]
 	[[ "${lines[7]}"  == '  QT_IM_MODULE=' ]]
 	[[ "${lines[8]}"  == '  CLAUDE_USE_WAYLAND=' ]]
-	[[ "${lines[9]}"  == '  CLAUDE_TITLEBAR_STYLE=' ]]
-	[[ "${lines[10]}" == '  CLAUDE_GTK_IM_MODULE=' ]]
+	[[ "${lines[9]}"  == '  CLAUDE_PASSWORD_STORE=' ]]
+	[[ "${lines[10]}" == '  CLAUDE_TITLEBAR_STYLE=' ]]
+	[[ "${lines[11]}" == '  CLAUDE_GTK_IM_MODULE=' ]]
 }
 
 # =============================================================================
@@ -281,6 +284,23 @@ teardown() {
 	setup_logging
 	build_electron_args appimage
 	has_electron_arg '--no-sandbox'
+}
+
+@test "build_electron_args: CLAUDE_PASSWORD_STORE=basic adds Chromium password store flag" {
+	CLAUDE_PASSWORD_STORE=basic
+	is_wayland=false
+	setup_logging
+	build_electron_args appimage
+	has_electron_arg '--password-store=basic'
+}
+
+@test "build_electron_args: invalid CLAUDE_PASSWORD_STORE is ignored" {
+	CLAUDE_PASSWORD_STORE=unknown-store
+	is_wayland=false
+	setup_logging
+	build_electron_args appimage
+	# shellcheck disable=SC2314
+	! has_electron_arg '--password-store=*'
 }
 
 @test "build_electron_args: Wayland XWayland deb - includes x11 platform and no-sandbox" {

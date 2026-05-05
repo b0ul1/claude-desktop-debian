@@ -82,6 +82,7 @@ docker_args=(
 	-e "XDG_DATA_HOME=/home/claude/.local/share"
 	-e "XDG_RUNTIME_DIR=/tmp/runtime-claude"
 	-e APPIMAGE_EXTRACT_AND_RUN=1
+	-e CLAUDE_PASSWORD_STORE=basic
 	-e CLAUDE_USE_WAYLAND=0
 	-e CLAUDE_QUIT_ON_CLOSE=1
 	-e GDK_DISABLE_SHM=1

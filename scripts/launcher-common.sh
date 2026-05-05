@@ -41,6 +41,7 @@ log_session_env() {
 		XMODIFIERS \
 		QT_IM_MODULE \
 		CLAUDE_USE_WAYLAND \
+		CLAUDE_PASSWORD_STORE \
 		CLAUDE_TITLEBAR_STYLE \
 		CLAUDE_GTK_IM_MODULE
 	do
@@ -100,6 +101,20 @@ _resolve_titlebar_style() {
 	esac
 }
 
+# Resolve an optional Chromium password-store backend. This is mainly used by
+# container launches where no host desktop keyring is available; without a
+# selectable backend, Electron safeStorage reports unavailable and OAuth tokens
+# are not persisted.
+_resolve_password_store() {
+	local raw="${CLAUDE_PASSWORD_STORE:-}"
+	raw="${raw,,}"
+	case "$raw" in
+		'') return 0 ;;
+		basic|gnome-libsecret|kwallet|kwallet5|kwallet6) echo "$raw" ;;
+		*) return 1 ;;
+	esac
+}
+
 # Build Electron arguments array based on display backend
 # Requires: is_wayland, use_x11_on_wayland to be set
 #           (call detect_display_backend first)
@@ -112,6 +127,16 @@ build_electron_args() {
 
 	# AppImage always needs --no-sandbox due to FUSE constraints
 	[[ $package_type == 'appimage' ]] && electron_args+=('--no-sandbox')
+
+	local _password_store=''
+	if _password_store=$(_resolve_password_store); then
+		if [[ -n $_password_store ]]; then
+			electron_args+=("--password-store=$_password_store")
+			log_message "Using Chromium password store: $_password_store"
+		fi
+	else
+		log_message "Ignoring unsupported CLAUDE_PASSWORD_STORE=${CLAUDE_PASSWORD_STORE:-}"
+	fi
 
 	# CLAUDE_TITLEBAR_STYLE selects between:
 	#   hybrid (default) / native: --disable-features=CustomTitlebar
