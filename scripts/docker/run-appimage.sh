@@ -30,16 +30,19 @@ ensure_image() {
 }
 
 cleanup_existing_containers() {
-	local ids
+	local line id name
 
 	# Remove older unnamed containers from previous wrapper versions.
-	ids=$(docker ps -q \
-		--filter "ancestor=$image_name" \
-		--filter "name=^/(?!${container_name}$).*" 2>/dev/null || true)
-	if [[ -n $ids ]]; then
-		# shellcheck disable=SC2086
-		docker stop $ids >/dev/null 2>&1 || true
-	fi
+	while IFS= read -r line; do
+		[[ -n $line ]] || continue
+		id="${line%% *}"
+		name="${line#* }"
+		[[ $name == "$container_name" ]] && continue
+		docker stop "$id" >/dev/null 2>&1 || true
+	done < <(
+		docker ps --filter "ancestor=$image_name" \
+			--format '{{.ID}} {{.Names}}' 2>/dev/null || true
+	)
 
 	if docker ps -a --format '{{.Names}}' \
 		| grep -Fxq "$container_name"; then
