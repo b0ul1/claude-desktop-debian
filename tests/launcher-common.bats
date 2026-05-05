@@ -35,10 +35,15 @@ setup() {
 	unset CLAUDE_USE_WAYLAND
 	unset NIRI_SOCKET
 	unset XDG_CURRENT_DESKTOP
+	unset XDG_SESSION_TYPE
 	unset CLAUDE_MENU_BAR
 	unset CLAUDE_TITLEBAR_STYLE
 	unset COWORK_VM_BACKEND
 	unset ELECTRON_USE_SYSTEM_TITLE_BAR
+	unset GTK_IM_MODULE
+	unset XMODIFIERS
+	unset QT_IM_MODULE
+	unset CLAUDE_GTK_IM_MODULE
 
 	# shellcheck source=scripts/launcher-common.sh
 	source "$SCRIPT_DIR/../scripts/launcher-common.sh"
@@ -84,6 +89,63 @@ teardown() {
 	run cat "$log_file"
 	[[ "${lines[0]}" == "test message one" ]]
 	[[ "${lines[1]}" == "test message two" ]]
+}
+
+# =============================================================================
+# log_session_env
+# =============================================================================
+
+@test "log_session_env: emits env={ ... } block with all required keys" {
+	setup_logging
+	XDG_SESSION_TYPE='wayland'
+	WAYLAND_DISPLAY='wayland-0'
+	DISPLAY=':0'
+	XDG_CURRENT_DESKTOP='KDE'
+	GTK_IM_MODULE='ibus'
+	XMODIFIERS='@im=ibus'
+	QT_IM_MODULE='ibus'
+	CLAUDE_USE_WAYLAND='1'
+	CLAUDE_TITLEBAR_STYLE='hybrid'
+	CLAUDE_GTK_IM_MODULE='xim'
+	log_session_env
+
+	run cat "$log_file"
+	# Exact-line match locks block structure (open/close braces on
+	# their own lines) and per-key formatting in one pass.
+	[[ "${lines[0]}"  == 'env={' ]]
+	[[ "${lines[1]}"  == '  XDG_SESSION_TYPE=wayland' ]]
+	[[ "${lines[2]}"  == '  WAYLAND_DISPLAY=wayland-0' ]]
+	[[ "${lines[3]}"  == '  DISPLAY=:0' ]]
+	[[ "${lines[4]}"  == '  XDG_CURRENT_DESKTOP=KDE' ]]
+	[[ "${lines[5]}"  == '  GTK_IM_MODULE=ibus' ]]
+	[[ "${lines[6]}"  == '  XMODIFIERS=@im=ibus' ]]
+	[[ "${lines[7]}"  == '  QT_IM_MODULE=ibus' ]]
+	[[ "${lines[8]}"  == '  CLAUDE_USE_WAYLAND=1' ]]
+	[[ "${lines[9]}"  == '  CLAUDE_TITLEBAR_STYLE=hybrid' ]]
+	[[ "${lines[10]}" == '  CLAUDE_GTK_IM_MODULE=xim' ]]
+	[[ "${lines[11]}" == '}' ]]
+}
+
+@test "log_session_env: unset/empty values render as 'KEY=' (no value)" {
+	setup_logging
+	# All vars unset by setup() except this one, which exercises the
+	# empty-string branch (must be indistinguishable from unset).
+	GTK_IM_MODULE=''
+	log_session_env
+
+	run cat "$log_file"
+	# Exact-line match proves the line ends right after '=' — a
+	# substring like *'KEY='* would also match 'KEY=value'.
+	[[ "${lines[1]}"  == '  XDG_SESSION_TYPE=' ]]
+	[[ "${lines[2]}"  == '  WAYLAND_DISPLAY=' ]]
+	[[ "${lines[3]}"  == '  DISPLAY=' ]]
+	[[ "${lines[4]}"  == '  XDG_CURRENT_DESKTOP=' ]]
+	[[ "${lines[5]}"  == '  GTK_IM_MODULE=' ]]
+	[[ "${lines[6]}"  == '  XMODIFIERS=' ]]
+	[[ "${lines[7]}"  == '  QT_IM_MODULE=' ]]
+	[[ "${lines[8]}"  == '  CLAUDE_USE_WAYLAND=' ]]
+	[[ "${lines[9]}"  == '  CLAUDE_TITLEBAR_STYLE=' ]]
+	[[ "${lines[10]}" == '  CLAUDE_GTK_IM_MODULE=' ]]
 }
 
 # =============================================================================
