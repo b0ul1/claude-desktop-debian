@@ -226,6 +226,14 @@ echo "AppStream metadata created at $appdata_file"
 
 # --- Get appimagetool ---
 appimagetool_path=''
+case "$architecture" in
+	amd64) appimage_arch='x86_64' ;;
+	arm64) appimage_arch='aarch64' ;;
+	*)
+		echo "Unsupported architecture for appimagetool: $architecture" >&2
+		exit 1
+		;;
+esac
 
 # Check system PATH first
 if command -v appimagetool &> /dev/null; then
@@ -243,20 +251,16 @@ for arch in x86_64 aarch64; do
 	fi
 done
 
-# Download if not found
+# Download if not found.
+#
+# Use AppImage/appimagetool, not the legacy AppImageKit build. The newer
+# tool embeds the current type2-runtime in generated AppImages, avoiding
+# the libfuse.so.2 runtime dependency that breaks on fresh Ubuntu 24.04+.
 if [[ -z $appimagetool_path ]]; then
 	echo 'Downloading appimagetool...'
-	case "$architecture" in
-		amd64) tool_arch='x86_64' ;;
-		arm64) tool_arch='aarch64' ;;
-		*)
-			echo "Unsupported architecture for appimagetool download: $architecture" >&2
-			exit 1
-			;;
-	esac
 
-	appimagetool_url="https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${tool_arch}.AppImage"
-	appimagetool_path="$work_dir/appimagetool-${tool_arch}.AppImage"
+	appimagetool_url="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${appimage_arch}.AppImage"
+	appimagetool_path="$work_dir/appimagetool-${appimage_arch}.AppImage"
 
 	if wget -q -O "$appimagetool_path" "$appimagetool_url"; then
 		chmod +x "$appimagetool_path" || exit 1
@@ -268,11 +272,15 @@ if [[ -z $appimagetool_path ]]; then
 	fi
 fi
 
+run_appimagetool() {
+	APPIMAGE_EXTRACT_AND_RUN=1 "$appimagetool_path" "$@"
+}
+
 # --- Build AppImage ---
 echo 'Building AppImage...'
 output_filename="${package_name}-${version}-${architecture}.AppImage"
 output_path="$work_dir/$output_filename"
-export ARCH="$architecture"
+export ARCH="$appimage_arch"
 echo "Using ARCH=$ARCH"
 
 # Local build - no update information
@@ -280,7 +288,7 @@ if [[ $GITHUB_ACTIONS != 'true' ]]; then
 	echo 'Running locally - building AppImage without update information'
 	echo '(Update info and zsync files are only generated in GitHub Actions for releases)'
 
-	if ! "$appimagetool_path" "$appdir_path" "$output_path"; then
+	if ! run_appimagetool "$appdir_path" "$output_path"; then
 		echo "Failed to build AppImage using $appimagetool_path" >&2
 		exit 1
 	fi
@@ -310,7 +318,8 @@ fi
 update_info="gh-releases-zsync|aaddrick|claude-desktop-debian|latest|claude-desktop-*-${architecture}.AppImage.zsync"
 echo "Update info: $update_info"
 
-if ! "$appimagetool_path" --updateinformation "$update_info" "$appdir_path" "$output_path"; then
+if ! run_appimagetool \
+	--updateinformation "$update_info" "$appdir_path" "$output_path"; then
 	echo "Failed to build AppImage using $appimagetool_path" >&2
 	exit 1
 fi
