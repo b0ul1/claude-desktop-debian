@@ -74,7 +74,8 @@ docker_args=(
 	--name "$container_name"
 	--hostname claude-desktop-docker
 	--ipc host
-	--user "$(id -u):$(id -g)"
+	-e "CLAUDE_HOST_UID=$(id -u)"
+	-e "CLAUDE_HOST_GID=$(id -g)"
 	-e "DISPLAY=$DISPLAY"
 	-e "HOME=/home/claude"
 	-e "XDG_CACHE_HOME=/home/claude/.cache"

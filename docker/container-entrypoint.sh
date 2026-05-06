@@ -5,35 +5,28 @@ set -u
 appimage_path='/opt/claude-desktop.AppImage'
 app_root=''
 
-mkdir -p "$XDG_RUNTIME_DIR" || exit 1
-chmod 700 "$XDG_RUNTIME_DIR" || exit 1
+drop_to_host_user() {
+	local uid="${CLAUDE_HOST_UID:-}"
+	local gid="${CLAUDE_HOST_GID:-}"
 
-setup_passwd_entry() {
-	local uid gid nss_passwd nss_group nss_library
+	[[ $(id -u) == 0 && -n $uid && -n $gid ]] || return 0
 
-	uid="$(id -u)"
-	gid="$(id -g)"
-
-	if getent passwd "$uid" >/dev/null 2>&1; then
-		return 0
+	if ! getent group "$gid" >/dev/null 2>&1; then
+		printf 'claude:x:%s:\n' "$gid" >> /etc/group || return 1
 	fi
 
-	nss_library='/usr/lib/libnss_wrapper.so'
-	[[ -r $nss_library ]] || return 0
+	if ! getent passwd "$uid" >/dev/null 2>&1; then
+		printf 'claude:x:%s:%s:Claude Desktop:%s:/usr/bin/bash\n' \
+			"$uid" "$gid" "$HOME" >> /etc/passwd || return 1
+	fi
 
-	nss_passwd="$XDG_RUNTIME_DIR/passwd"
-	nss_group="$XDG_RUNTIME_DIR/group"
-
-	printf 'claude:x:%s:%s:Claude Desktop:%s:/usr/bin/bash\n' \
-		"$uid" "$gid" "$HOME" > "$nss_passwd" || return 1
-	printf 'claude:x:%s:\n' "$gid" > "$nss_group" || return 1
-
-	export NSS_WRAPPER_PASSWD="$nss_passwd"
-	export NSS_WRAPPER_GROUP="$nss_group"
-	export LD_PRELOAD="$nss_library${LD_PRELOAD:+:$LD_PRELOAD}"
+	exec setpriv --reuid "$uid" --regid "$gid" --clear-groups "$0" "$@"
 }
 
-setup_passwd_entry || exit 1
+drop_to_host_user "$@" || exit 1
+
+mkdir -p "$XDG_RUNTIME_DIR" || exit 1
+chmod 700 "$XDG_RUNTIME_DIR" || exit 1
 
 prepare_appimage_root() {
 	local extract_parent="$XDG_RUNTIME_DIR/appimage-extract"

@@ -25,9 +25,9 @@ RUN pacman -Syu --noconfirm \
 	libxtst \
 	mesa \
 	nss \
-	nss_wrapper \
 	xdg-utils \
 	xorg-xprop \
+	git \
 	&& pacman -Scc --noconfirm
 
 ENV ELECTRON_DISABLE_SECURITY_WARNINGS=1
