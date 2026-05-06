@@ -8,6 +8,7 @@ image_name="${CLAUDE_DESKTOP_DOCKER_IMAGE:-claude-desktop-appimage-runtime:local
 container_name="${CLAUDE_DESKTOP_DOCKER_CONTAINER:-claude-desktop}"
 container_home="${XDG_DATA_HOME:-$HOME/.local/share}/claude-desktop-docker/home"
 container_cache="${XDG_CACHE_HOME:-$HOME/.cache}/claude-desktop-docker"
+shared_dir="${CLAUDE_DESKTOP_SHARED_DIR:-$HOME/Documents/projet/claude-desktop-docker}"
 
 find_appimage() {
 	find "$repo_root" -maxdepth 2 -type f \
@@ -26,7 +27,6 @@ ensure_image() {
 	docker build \
 		-t "$image_name" \
 		-f "$repo_root/docker/appimage-runtime.Dockerfile" \
-		--build-context shared="$HOME/Documents/projet/claude-desktop-docker" \
 		"$repo_root"
 }
 
@@ -66,7 +66,7 @@ if [[ -z ${DISPLAY:-} ]]; then
 fi
 
 ensure_image || exit 1
-mkdir -p "$container_home" "$container_cache" || exit 1
+mkdir -p "$container_home" "$container_cache" "$shared_dir" || exit 1
 cleanup_existing_containers
 
 docker_args=(
@@ -94,6 +94,7 @@ docker_args=(
 	-v "$container_cache:/home/claude/.cache"
 	-v "$repo_root:/work:ro"
 	-v "$appimage_path:/opt/claude-desktop.AppImage:ro"
+	-v "$shared_dir:/app/claude-desktop-docker"
 	--workdir /home/claude
 )
 
