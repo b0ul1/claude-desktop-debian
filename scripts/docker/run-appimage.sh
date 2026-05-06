@@ -26,6 +26,7 @@ ensure_image() {
 	docker build \
 		-t "$image_name" \
 		-f "$repo_root/docker/appimage-runtime.Dockerfile" \
+		--build-context shared="$HOME/Documents/projet/claude-desktop-docker" \
 		"$repo_root"
 }
 
